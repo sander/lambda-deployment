@@ -17,7 +17,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - uses: coursier/cache-action@v6.3
-    - uses: VirtusLab/scala-cli-setup@v0.1
+    - uses: VirtusLab/scala-cli-setup@v1.0.1
     - run: mkdir -p out
     - run: scala-cli --power package my-function/my-function.scala -o out/hello.jar --assembly --preamble=false
     - uses: hashicorp/setup-terraform@v1
