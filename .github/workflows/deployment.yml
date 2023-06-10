@@ -2,7 +2,6 @@ name: Deployment
 on:
   push:
     branches: ["main"]
-  pull_request:
 permissions:
   contents: read
 jobs:
@@ -20,6 +19,10 @@ jobs:
     - uses: VirtusLab/scala-cli-setup@v1.0.1
     - run: mkdir -p out
     - run: scala-cli --power package my-function/my-function.scala -o out/hello.jar --assembly --preamble=false
-    - uses: hashicorp/setup-terraform@v1
-    - run: cdktf plan
-      working-directory: infrastructure
+    - uses: hashicorp/terraform-cdk-action@v0.1.26
+      with:
+        working-directory: infrastructure
+        terraformVersion: 1.4.6
+        cdktfVersion: 0.16.3
+        stackName: my-function
+        mode: auto-approve-apply
