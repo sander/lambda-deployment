@@ -13,7 +13,7 @@ class MyRequestHandler:
   def handleRequest(event: APIGatewayV2HTTPEvent, context: Context): APIGatewayV2HTTPResponse =
     val logger = context.getLogger()
     logger.log("event: " + event)
-    val responseMessage = "Hello, World!"
+    val responseMessage = "Hello, World"
     val response = APIGatewayV2HTTPResponse()
     response.setIsBase64Encoded(false)
     response.setStatusCode(200)
