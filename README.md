@@ -8,7 +8,7 @@ Compile the function:
 Deploy the infrastructure:
 
     cd infrastructure
-    cdktf deploy learn-cdktf-lambda
+    cdktf deploy my-function
 
 Get the base URL from the output and call it, e.g.:
 

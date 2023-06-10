@@ -35,35 +35,54 @@ import com.hashicorp.cdktf.providers.random_provider.provider.RandomProvider
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
 import software.constructs.Construct
-import java.math.BigInteger
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.security.MessageDigest
 import java.util.*
 
-fun main(args: Array<String>) {
+fun main() {
     val app = App()
-    MainStack(app, "learn-cdktf-lambda")
+    MyFunctionStack(app, "my-function")
     app.synth()
 }
 
-class MainStack(scope: Construct, id: String) : TerraformStack(scope, id) {
+class MyFunctionStack(scope: Construct, id: String) : TerraformStack(scope, id) {
+
+    private val region = "eu-central-1"
+    private val stateBucketName = "sander-terraform-bucket"
+    private val stateKey = "cdktf/key"
+    private val bucketPrefix = "cdktf-lambda"
+    private val jarPath = "../out/hello.jar"
+    private val handler = "nl.sanderdijkhuis.lambda.MyRequestHandler::handleRequest"
+    private val functionName = "HelloWorld"
+
     init {
-        AwsProvider(this, "aws", AwsProviderConfig.builder().region("eu-central-1").build())
+        AwsProvider(this, "aws", AwsProviderConfig.builder().region(region).build())
         RandomProvider(this, "random")
-        S3Backend(this, S3BackendConfig.builder().bucket("sander-terraform-bucket").key("cdktf/key").region("eu-central-1").build())
+        S3Backend(this, S3BackendConfig.builder().bucket(stateBucketName).key(stateKey).region(region).build())
 
-        val pet = Pet(this, "pet", PetConfig.builder().prefix("cdktf-lambda").length(2).build())
+        val pet = Pet(this, "pet", PetConfig.builder().prefix(bucketPrefix).length(2).build())
 
-        val asset = TerraformAsset(this, "lambda-asset", TerraformAssetConfig.builder().path("../out/hello.jar").type(AssetType.FILE).build())
-        println(asset.assetHash)
-        val hash = MessageDigest.getInstance("MD5").digest(Files.readAllBytes(Paths.get("../out/hello.jar")))
-        println(BigInteger(1, hash).toString(16))
-        val bucket = S3Bucket(this, "lambda_bucket", S3BucketConfig.builder().bucket(pet.id).build())
-        val ownership = S3BucketOwnershipControls(this, "s3_bucket_acl_ownership", S3BucketOwnershipControlsConfig.builder().bucket(bucket.id).rule(
-            S3BucketOwnershipControlsRule.builder().objectOwnership("ObjectWriter").build()).build())
-        val acl = S3BucketAcl(this, "bucket_acl", S3BucketAclConfig.builder().bucket(bucket.id).acl("private").dependsOn(listOf(ownership)).build())
-        val obj = S3Object(this, "lambda_hello_world", S3ObjectConfig.builder().bucket(bucket.id).key("hello-world.jar").source(asset.path)/*.etag(asset.assetHash)*/.build())
+        val bucket = S3Bucket(this, "bucket", S3BucketConfig.builder().bucket(pet.id).build())
+        val ownership = S3BucketOwnershipControls(this, "controls", S3BucketOwnershipControlsConfig.builder()
+            .bucket(bucket.id)
+            .rule(S3BucketOwnershipControlsRule.builder().objectOwnership("ObjectWriter").build())
+            .build())
+        S3BucketAcl(this, "acl", S3BucketAclConfig.builder()
+            .bucket(bucket.id)
+            .acl("private")
+            .dependsOn(listOf(ownership))
+            .build())
+
+        val asset = TerraformAsset(this, "asset", TerraformAssetConfig.builder()
+            .path(jarPath)
+            .type(AssetType.FILE)
+            .build())
+        val s3object = S3Object(this, "object", S3ObjectConfig.builder()
+            .bucket(bucket.id)
+            .key("hello-world.jar")
+            .source(asset.path)
+            .build())
 
         val policy = Json.encodeToString(
             buildJsonObject {
@@ -80,40 +99,42 @@ class MainStack(scope: Construct, id: String) : TerraformStack(scope, id) {
                 }
             }
         )
-        println(policy)
-        val role = IamRole(this, "lambda_exec", IamRoleConfig.builder()
+        val role = IamRole(this, "role", IamRoleConfig.builder()
             .name("serverless_lambda")
             .assumeRolePolicy(policy)
             .build())
-        val function = LambdaFunction(this, "hello_world_function", LambdaFunctionConfig.builder()
-            .functionName("HelloWorld")
+        val function = LambdaFunction(this, "function", LambdaFunctionConfig.builder()
+            .functionName(functionName)
             .s3Bucket(bucket.id)
-            .s3Key(obj.key)
+            .s3Key(s3object.key)
             .runtime("java17")
-            .handler("nl.sanderdijkhuis.lambda.MyRequestHandler::handleRequest")
-            .sourceCodeHash(Base64.getEncoder().encodeToString(MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(Paths.get("../out/hello.jar")))))
+            .handler(handler)
+            .sourceCodeHash(
+                Base64.getEncoder().encodeToString(
+                    MessageDigest.getInstance("SHA-256").digest(
+                        Files.readAllBytes(Paths.get(jarPath)))))
             .role(role.arn)
             .build())
-        val logGroup = CloudwatchLogGroup(this, "hello_world_log", CloudwatchLogGroupConfig.builder()
+        CloudwatchLogGroup(this, "group", CloudwatchLogGroupConfig.builder()
             .name("/aws/lambda/${function.functionName}")
             .retentionInDays(30)
             .build())
-        val policyAttachment = IamRolePolicyAttachment(this, "lambda_policy", IamRolePolicyAttachmentConfig.builder()
+        IamRolePolicyAttachment(this, "attachment", IamRolePolicyAttachmentConfig.builder()
             .role(role.name)
             .policyArn("arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole")
             .build())
 
         TerraformOutput(this, "function_name", TerraformOutputConfig.builder().value(function.functionName).build())
 
-        val api = Apigatewayv2Api(this, "lambda-api", Apigatewayv2ApiConfig.builder()
+        val api = Apigatewayv2Api(this, "api", Apigatewayv2ApiConfig.builder()
             .name("serverless_lambda_gw")
             .protocolType("HTTP")
             .build())
-        val apiLogGroup = CloudwatchLogGroup(this, "hello_world_api_log", CloudwatchLogGroupConfig.builder()
+        val apiLogGroup = CloudwatchLogGroup(this, "api_group", CloudwatchLogGroupConfig.builder()
             .name("/aws/api_gw/${api.name}")
             .retentionInDays(30)
             .build())
-        val stage = Apigatewayv2Stage(this, "lambda-stage", Apigatewayv2StageConfig.builder()
+        val stage = Apigatewayv2Stage(this, "stage", Apigatewayv2StageConfig.builder()
             .apiId(api.id)
             .name("serverless_lambda_stage")
             .autoDeploy(true)
@@ -135,24 +156,25 @@ class MainStack(scope: Construct, id: String) : TerraformStack(scope, id) {
                 ))
                 .build())
             .build())
-        val integration = Apigatewayv2Integration(this, "hello_world", Apigatewayv2IntegrationConfig.builder()
+        val integration = Apigatewayv2Integration(this, "integration", Apigatewayv2IntegrationConfig.builder()
             .apiId(api.id)
             .integrationUri(function.invokeArn)
             .integrationType("AWS_PROXY")
             .integrationMethod("POST")
             .build())
-        val route = Apigatewayv2Route(this, "hello_world_route", Apigatewayv2RouteConfig.builder()
+        Apigatewayv2Route(this, "route", Apigatewayv2RouteConfig.builder()
             .apiId(api.id)
             .routeKey("GET /hello")
             .target("integrations/${integration.id}")
             .build())
-        val permission = LambdaPermission(this, "api_gw", LambdaPermissionConfig.builder()
+        LambdaPermission(this, "permission", LambdaPermissionConfig.builder()
             .statementId("AllowExecutionFromAPIGateway")
             .action("lambda:InvokeFunction")
             .functionName(function.functionName)
             .principal("apigateway.amazonaws.com")
             .sourceArn("${api.executionArn}/*/*")
             .build())
+
         TerraformOutput(this, "base_url", TerraformOutputConfig.builder().value(stage.invokeUrl).build())
     }
 }
