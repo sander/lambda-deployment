@@ -21,8 +21,9 @@ jobs:
     - run: scala-cli --power package my-function/my-function.scala -o out/hello.jar --assembly --preamble=false
     - uses: hashicorp/terraform-cdk-action@v0.1.26
       with:
-        working-directory: infrastructure
+        workingDirectory: infrastructure
         terraformVersion: 1.4.6
         cdktfVersion: 0.16.3
         stackName: my-function
         mode: auto-approve-apply
+        githubToken: ${{ secrets.GITHUB_TOKEN }}
