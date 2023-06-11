@@ -7,7 +7,7 @@ Compile the function:
 
 Initialize Terraform:
 
-    cd infrastructure/production
+    cd infrastructure/environments/production
     terraform init
 
 Deploy the infrastructure:

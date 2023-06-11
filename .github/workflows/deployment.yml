@@ -43,14 +43,14 @@ jobs:
         aws-region: eu-central-1
     - uses: hashicorp/setup-terraform@v1
     - run: terraform init
-      working-directory: infrastructure/acceptance
+      working-directory: infrastructure/environments/acceptance
     - run: terraform fmt -check
-      working-directory: infrastructure/acceptance
+      working-directory: infrastructure/environments/acceptance
     - run: terraform plan -input=false
-      working-directory: infrastructure/acceptance
+      working-directory: infrastructure/environments/acceptance
     - run: terraform apply -auto-approve -input=false
       #if: github.ref == 'refs/heads/"main"' && github.event_name == 'push'
-      working-directory: infrastructure/acceptance
+      working-directory: infrastructure/environments/acceptance
       # TODO: https://help.github.com/en/github/administering-a-repository/types-of-required-status-checks strict
   production:
     name: Production
@@ -73,12 +73,12 @@ jobs:
         aws-region: eu-central-1
     - uses: hashicorp/setup-terraform@v1
     - run: terraform init
-      working-directory: infrastructure/production
+      working-directory: infrastructure/environments/production
     - run: terraform fmt -check
-      working-directory: infrastructure/production
+      working-directory: infrastructure/environments/production
     - run: terraform plan -input=false
-      working-directory: infrastructure/production
+      working-directory: infrastructure/environments/production
     - run: terraform apply -auto-approve -input=false
       #if: github.ref == 'refs/heads/"main"' && github.event_name == 'push'
-      working-directory: infrastructure/production
+      working-directory: infrastructure/environments/production
       # TODO: https://help.github.com/en/github/administering-a-repository/types-of-required-status-checks strict
