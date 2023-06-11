@@ -17,7 +17,11 @@ jobs:
     - uses: VirtusLab/scala-cli-setup@v1.0.1
     - run: mkdir -p out
     - run: scala-cli --power package my-function/my-function.scala -o out/hello.jar --assembly --preamble=false
-    - uses: hashicorp/setup-terraform@v1
+    - uses: actions/upload-artifact@v3
+      with:
+        name: my-function
+        path: |
+          out/hello.jar
   acceptance:
     name: Acceptance
     runs-on: ubuntu-latest
@@ -28,11 +32,16 @@ jobs:
         shell: bash
     needs: [build]
     steps:
+    - uses: actions/checkout@v3
+    - uses: actions/download-artifact@v3
+      with:
+        name: my-function
     - uses: aws-actions/configure-aws-credentials@v2
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: eu-central-1
+    - uses: hashicorp/setup-terraform@v1
     - run: terraform init
       working-directory: infrastructure/acceptance
     - run: terraform fmt -check
@@ -53,11 +62,16 @@ jobs:
         shell: bash
     needs: [acceptance]
     steps:
+    - uses: actions/checkout@v3
+    - uses: actions/download-artifact@v3
+      with:
+        name: my-function
     - uses: aws-actions/configure-aws-credentials@v2
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: eu-central-1
+    - uses: hashicorp/setup-terraform@v1
     - run: terraform init
       working-directory: infrastructure/production
     - run: terraform fmt -check
