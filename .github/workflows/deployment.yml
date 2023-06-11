@@ -5,11 +5,9 @@ on:
 permissions:
   contents: read
 jobs:
-  build_and_deploy:
-    name: Build and deploy
+  build:
+    name: Build
     runs-on: ubuntu-latest
-    environment: production
-    concurrency: production
     defaults:
       run:
         shell: bash
@@ -19,20 +17,47 @@ jobs:
     - uses: VirtusLab/scala-cli-setup@v1.0.1
     - run: mkdir -p out
     - run: scala-cli --power package my-function/my-function.scala -o out/hello.jar --assembly --preamble=false
-    - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v2
+    - uses: aws-actions/configure-aws-credentials@v2
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: eu-central-1
     - uses: hashicorp/setup-terraform@v1
+  acceptance:
+    name: Acceptance
+    runs-on: ubuntu-latest
+    environment: acceptance
+    concurrency: acceptance
+    defaults:
+      run:
+        shell: bash
+    needs: [build]
     - run: terraform init
-      working-directory: infrastructure
+      working-directory: infrastructure/acceptance
     - run: terraform fmt -check
-      working-directory: infrastructure
+      working-directory: infrastructure/acceptance
     - run: terraform plan -input=false
-      working-directory: infrastructure
+      working-directory: infrastructure/acceptance
     - run: terraform apply -auto-approve -input=false
       #if: github.ref == 'refs/heads/"main"' && github.event_name == 'push'
-      working-directory: infrastructure
+      working-directory: infrastructure/acceptance
+      # TODO: https://help.github.com/en/github/administering-a-repository/types-of-required-status-checks strict
+  production:
+    name: Production
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency: production
+    defaults:
+      run:
+        shell: bash
+    needs: [acceptance]
+    - run: terraform init
+      working-directory: infrastructure/production
+    - run: terraform fmt -check
+      working-directory: infrastructure/production
+    - run: terraform plan -input=false
+      working-directory: infrastructure/production
+    - run: terraform apply -auto-approve -input=false
+      #if: github.ref == 'refs/heads/"main"' && github.event_name == 'push'
+      working-directory: infrastructure/production
       # TODO: https://help.github.com/en/github/administering-a-repository/types-of-required-status-checks strict

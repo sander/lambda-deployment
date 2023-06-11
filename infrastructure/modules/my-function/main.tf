@@ -4,6 +4,7 @@ provider "aws" {
   default_tags {
     tags = {
       hashicorp-learn = "lambda-api-gateway"
+      environment = var.environment
     }
   }
 
@@ -19,7 +20,7 @@ resource "aws_s3_bucket" "lambda_bucket" {
 }
 
 resource "aws_s3_bucket_ownership_controls" "controls" {
-  bucket = random_pet.lambda_bucket_name.id
+  bucket = aws_s3_bucket.lambda_bucket.id
   rule {
     object_ownership = "ObjectWriter"
   }
@@ -35,13 +36,13 @@ resource "aws_s3_object" "lambda_hello_world" {
   bucket = aws_s3_bucket.lambda_bucket.id
 
   key    = "hello-world.jar"
-  source = "../out/hello.jar"
+  source = "../../../out/hello.jar"
 
-  source_hash = filemd5("../out/hello.jar") // TODO etag could conflict with KMS?
+  source_hash = filemd5("../../../out/hello.jar") // TODO etag could conflict with KMS?
 }
 
 resource "aws_lambda_function" "hello_world" {
-  function_name = "HelloWorld"
+  function_name = "HelloWorld-${var.environment}"
 
   s3_bucket = aws_s3_bucket.lambda_bucket.id
   s3_key    = aws_s3_object.lambda_hello_world.key
@@ -49,7 +50,7 @@ resource "aws_lambda_function" "hello_world" {
   runtime = "java17"
   handler = "nl.sanderdijkhuis.lambda.MyRequestHandler::handleRequest"
 
-  source_code_hash = filebase64sha256("../out/hello.jar")
+  source_code_hash = filebase64sha256("../../../out/hello.jar")
 
   role = aws_iam_role.lambda_exec.arn
 }
@@ -61,7 +62,7 @@ resource "aws_cloudwatch_log_group" "hello_world" {
 }
 
 resource "aws_iam_role" "lambda_exec" {
-  name = "serverless_lambda"
+  name = "serverless_lambda-${var.environment}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -127,7 +128,7 @@ resource "aws_apigatewayv2_route" "hello_world" {
 }
 
 resource "aws_cloudwatch_log_group" "api_gw" {
-  name = "/aws/api_gw/${aws_apigatewayv2_api.lambda.name}"
+  name = "/aws/api_gw/${aws_apigatewayv2_api.lambda.name}-${var.environment}"
 
   retention_in_days = 30
 }
