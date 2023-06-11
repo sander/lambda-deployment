@@ -25,11 +25,10 @@ jobs:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: eu-central-1
-    - uses: hashicorp/terraform-cdk-action@v0.1.26
-      with:
-        workingDirectory: infrastructure
-        terraformVersion: 1.4.6
-        cdktfVersion: 0.16.3
-        stackName: my-function
-        mode: auto-approve-apply
-        githubToken: ${{ secrets.GITHUB_TOKEN }}
+    - uses: hashicorp/setup-terraform@v1
+    - run: terraform init
+    - run: terraform fmt -check
+    - run: terraform plan -input=false
+    - run: terraform apply -auto_approve -input=false
+      if: github.ref == 'refs/heads/"main"' && github.event_name == 'push'
+      # TODO: https://help.github.com/en/github/administering-a-repository/types-of-required-status-checks strict
