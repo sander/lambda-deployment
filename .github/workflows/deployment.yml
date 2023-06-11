@@ -27,8 +27,12 @@ jobs:
         aws-region: eu-central-1
     - uses: hashicorp/setup-terraform@v1
     - run: terraform init
+      working-directory: infrastructure
     - run: terraform fmt -check
+      working-directory: infrastructure
     - run: terraform plan -input=false
+      working-directory: infrastructure
     - run: terraform apply -auto_approve -input=false
       if: github.ref == 'refs/heads/"main"' && github.event_name == 'push'
+      working-directory: infrastructure
       # TODO: https://help.github.com/en/github/administering-a-repository/types-of-required-status-checks strict
