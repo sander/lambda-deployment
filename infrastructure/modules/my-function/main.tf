@@ -4,7 +4,7 @@ provider "aws" {
   default_tags {
     tags = {
       hashicorp-learn = "lambda-api-gateway"
-      environment = var.environment
+      environment     = var.environment
     }
   }
 

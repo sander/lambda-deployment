@@ -5,7 +5,7 @@ variable "aws_region" {
   default = "eu-central-1"
 }
 
-variable "environment"{
-  type = string
+variable "environment" {
+  type    = string
   default = "development"
 }

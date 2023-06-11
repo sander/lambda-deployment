@@ -1,4 +1,4 @@
 module "my_function" {
-  source = "../../modules/my-function"
+  source      = "../../modules/my-function"
   environment = "production"
 }
