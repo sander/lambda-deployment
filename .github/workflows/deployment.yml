@@ -32,6 +32,7 @@ jobs:
       run:
         shell: bash
     needs: [build]
+    steps:
     - run: terraform init
       working-directory: infrastructure/acceptance
     - run: terraform fmt -check
@@ -51,6 +52,7 @@ jobs:
       run:
         shell: bash
     needs: [acceptance]
+    steps:
     - run: terraform init
       working-directory: infrastructure/production
     - run: terraform fmt -check
